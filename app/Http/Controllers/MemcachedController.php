@@ -5,14 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
+
+use App\Models\Memcache;
+
 class MemcachedController extends Controller
 {
-    /**
-     * Store data in the cache.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+    
     public function store(Request $request)
     {
         $key = $request->input('key');
@@ -29,15 +27,11 @@ class MemcachedController extends Controller
         ]);
     }
 
-    /**
-     * Retrieve data from the cache.
-     *
-     * @param string $key
-     * @return \Illuminate\Http\JsonResponse
-     */
+   
+
     public function retrieve($key)
     {
-        // Retrieve from Memcached
+
         if (Cache::has($key)) {
             $value = Cache::get($key);
 
@@ -52,12 +46,8 @@ class MemcachedController extends Controller
         ], 404);
     }
 
-    /**
-     * Delete data from the cache.
-     *
-     * @param string $key
-     * @return \Illuminate\Http\JsonResponse
-     */
+   
+
     public function delete($key)
     {
         // Delete from Memcached
@@ -73,11 +63,9 @@ class MemcachedController extends Controller
         ], 404);
     }
 
-    /**
-     * Clear all cached data.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
+    
+
+
     public function clearAll()
     {
         // Clear all cache
@@ -87,4 +75,50 @@ class MemcachedController extends Controller
             'message' => 'All cache cleared successfully',
         ]);
     }
+
+
+
+    public function storeInCache(Request $request)
+    {
+        $id = $request->id;
+        $ttl = $request->input('ttl', 60); // Default TTL set to 60 minutes
+
+        try {
+            // Check if the key exists in the cache
+            if (Cache::has($id)) {
+                $value = Cache::get($id);
+                return response()->json([
+                    'message' => 'Data retrieved from cache',
+                    'key' => $id,
+                    'value' => $value,
+                ]);
+            }
+
+            // If not in cache, retrieve from database
+            $movi = Memcache::find($id);
+
+            if ($movi) {
+                $value = $movi;
+                // Store in cache
+                Cache::put($id, $value, $ttl);
+
+                return response()->json([
+                    'message' => 'Data retrieved from database and cached',
+                    'key' => $id,
+                    'value' => $value,
+                    'ttl' => $ttl,
+                ]);
+            } else {
+                return response()->json([
+                    'message' => 'Data not found in database',
+                ], 404);
+            }
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+
